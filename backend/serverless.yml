@@ -1,0 +1,82 @@
+service: ai-style-editor-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  timeout: 30
+  memorySize: 1024
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    OPENAI_API_KEY: ${env:OPENAI_API_KEY}
+    AWS_REGION: ${self:provider.region}
+    S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
+    MONGODB_URI: ${env:MONGODB_URI}
+    FRONTEND_URL: ${env:FRONTEND_URL}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource: 
+            - "arn:aws:s3:::${env:S3_BUCKET_NAME}/*"
+        - Effect: Allow
+          Action:
+            - s3:ListBucket
+          Resource: 
+            - "arn:aws:s3:::${env:S3_BUCKET_NAME}"
+
+functions:
+  api:
+    handler: dist/handler.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors:
+            origin: ${env:FRONTEND_URL}
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: true
+      - http:
+          path: /
+          method: ANY
+          cors:
+            origin: ${env:FRONTEND_URL}
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: true
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3001
+    host: 0.0.0.0
+
+package:
+  patterns:
+    - '!node_modules/.cache/**'
+    - '!src/**'
+    - '!*.md'
+    - '!*.yml'
+    - '!*.yaml'
+    - '!.env*'
+    - '!.git/**'

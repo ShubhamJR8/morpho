@@ -1,0 +1,50 @@
+[
+  {
+    "id": "t1",
+    "title": "Pastel Balloon Sky",
+    "previewUrl": "https://picsum.photos/400/400?random=1",
+    "description": "Transform your image into a dreamy pastel world with floating balloons",
+    "category": "Fantasy",
+    "prompt": "Take the uploaded image and transform it into a dreamy pastel fantasy scene. Keep the original person's identity and pose, but place them in a soft pastel-colored sky filled with floating balloons in shades of pink, lavender, and baby blue. Add soft, ethereal lighting with gentle gradients. The background should be a beautiful pastel sky with wispy clouds. Maintain the person's facial features and clothing style but give everything a magical, dreamy quality with soft shadows and glowing highlights."
+  },
+  {
+    "id": "t2",
+    "title": "Cyberpunk Neon",
+    "previewUrl": "https://picsum.photos/400/400?random=2",
+    "description": "Give your image a futuristic cyberpunk makeover with neon lights",
+    "category": "Sci-Fi",
+    "prompt": "Transform the uploaded image into a cyberpunk aesthetic. Keep the original person's identity and pose, but place them in a futuristic urban environment with neon lights, holographic displays, and dark, rainy streets. Add glowing neon colors (electric blue, hot pink, bright green) to their clothing and surroundings. Include elements like neon signs, flying cars, and digital rain effects. The lighting should be dramatic with high contrast between the bright neon colors and dark shadows. Maintain the person's facial features but add subtle cyberpunk elements like glowing eyes or digital tattoos."
+  },
+  {
+    "id": "t3",
+    "title": "Vintage Film Noir",
+    "previewUrl": "https://picsum.photos/400/400?random=3",
+    "description": "Classic black and white film noir style with dramatic shadows",
+    "category": "Vintage",
+    "prompt": "Transform the uploaded image into a classic film noir style. Keep the original person's identity and pose, but convert the image to black and white with high contrast. Add dramatic shadows and lighting typical of 1940s film noir. Include elements like venetian blinds casting shadows, smoke effects, and moody atmospheric lighting. The person should maintain their facial features but be styled in vintage clothing appropriate for the era. Add a sense of mystery and drama with deep shadows and bright highlights. The overall mood should be cinematic and atmospheric."
+  },
+  {
+    "id": "t4",
+    "title": "Watercolor Dream",
+    "previewUrl": "https://picsum.photos/400/400?random=4",
+    "description": "Beautiful watercolor painting effect with soft, flowing colors",
+    "category": "Artistic",
+    "prompt": "Transform the uploaded image into a beautiful watercolor painting. Keep the original person's identity and pose, but render everything in a soft, flowing watercolor style. Use gentle, blended colors that flow into each other naturally. Add watercolor texture with soft edges and subtle paper grain. The colors should be vibrant but soft, with natural bleeding effects typical of watercolor paintings. Maintain the person's facial features and clothing but give everything a painterly, artistic quality. Include soft, organic backgrounds with flowing color washes."
+  },
+  {
+    "id": "t5",
+    "title": "Tropical Paradise",
+    "previewUrl": "https://picsum.photos/400/400?random=5",
+    "description": "Transport your image to a lush tropical paradise",
+    "category": "Nature",
+    "prompt": "Transform the uploaded image by placing the person in a lush tropical paradise. Keep the original person's identity and pose, but surround them with vibrant tropical elements like palm trees, exotic flowers, crystal clear blue water, and golden sandy beaches. Add warm, golden sunlight filtering through the leaves. Include tropical birds, colorful fish, and other paradise elements. The lighting should be warm and inviting with natural tropical colors. Maintain the person's facial features but dress them in light, tropical-appropriate clothing. The overall atmosphere should be relaxing and idyllic."
+  },
+  {
+    "id": "t6",
+    "title": "Steampunk Adventure",
+    "previewUrl": "https://picsum.photos/400/400?random=6",
+    "description": "Victorian-era steampunk style with brass and gears",
+    "category": "Fantasy",
+    "prompt": "Transform the uploaded image into a steampunk adventure scene. Keep the original person's identity and pose, but place them in a Victorian-era steampunk world. Add brass gears, copper pipes, steam effects, and mechanical elements. Dress the person in steampunk attire with goggles, corsets, and brass accessories. Include flying airships, mechanical contraptions, and industrial elements in the background. The color palette should feature brass, copper, brown, and sepia tones. Add dramatic lighting with steam and smoke effects. Maintain the person's facial features but give them a adventurous, explorer quality."
+  }
+]
