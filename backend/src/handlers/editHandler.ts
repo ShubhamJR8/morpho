@@ -3,6 +3,13 @@ import multer from 'multer';
 import { TemplateService } from '../services/templateService';
 import { OpenAIService } from '../services/openaiService';
 import { S3Service } from '../services/s3Service';
+import { ImageOptimizationService } from '../services/imageOptimization';
+import { logger } from '../middleware/logging';
+import { ValidationError, NotFoundError, FileProcessingError, ExternalServiceError } from '../middleware/errorHandling';
+import { analyticsService } from '../services/analyticsService';
+import { userSessionService } from '../services/userSessionService';
+import { Template } from '../models/Template';
+import { v4 as uuidv4 } from 'uuid';
 
 // Define types locally
 interface ApiResponse<T> {
@@ -38,11 +45,13 @@ export class EditHandler {
   private templateService: TemplateService;
   private openaiService: OpenAIService;
   private s3Service: S3Service;
+  private imageOptimizationService: ImageOptimizationService;
 
   constructor() {
     this.templateService = new TemplateService();
     this.openaiService = new OpenAIService();
     this.s3Service = new S3Service();
+    this.imageOptimizationService = new ImageOptimizationService();
   }
 
   // Middleware for handling file upload
@@ -50,54 +59,149 @@ export class EditHandler {
 
   editImage = async (req: Request, res: Response): Promise<void> => {
     const startTime = Date.now();
+    const requestId = (req as any).requestId;
     
     try {
       // Validate request
       if (!req.file) {
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'No image file provided',
-        };
-        res.status(400).json(response);
-        return;
+        throw new ValidationError('No image file provided');
       }
 
       const { templateId } = req.body;
       if (!templateId) {
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'Template ID is required',
-        };
-        res.status(400).json(response);
-        return;
+        throw new ValidationError('Template ID is required');
       }
 
-      // Get template and prompt
-      const prompt = this.templateService.getTemplatePrompt(templateId);
-      if (!prompt) {
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'Template not found or invalid',
-        };
-        res.status(404).json(response);
-        return;
+      // Get or create session
+      let sessionId = req.headers['x-session-id'] as string;
+      if (!sessionId) {
+        const session = await userSessionService.createSession(undefined, {
+          userAgent: req.get('User-Agent'),
+          ipAddress: req.ip || req.connection.remoteAddress
+        });
+        sessionId = session.sessionId;
       }
 
-      console.log(`Starting image edit for template: ${templateId}`);
+      // Update session activity
+      userSessionService.updateSessionActivity(sessionId);
 
-      // Upload original image to S3 first
-      const originalImageUrl = await this.s3Service.uploadImage(
+      logger.info('Starting image edit process', requestId, {
+        templateId,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+        sessionId
+      });
+
+      // Validate and optimize the uploaded image
+      const isValidImage = await this.imageOptimizationService.validateImage(req.file.buffer);
+      if (!isValidImage) {
+        throw new FileProcessingError('Invalid image file');
+      }
+
+      // Get image metadata
+      const metadata = await this.imageOptimizationService.getImageMetadata(req.file.buffer);
+      logger.debug('Image metadata', requestId, metadata);
+
+      // Optimize the image before processing
+      const optimizationResult = await this.imageOptimizationService.optimizeImage(
         req.file.buffer,
-        req.file.originalname,
+        {
+          maxWidth: 2048,
+          maxHeight: 2048,
+          quality: 90,
+          format: 'jpeg'
+        }
+      );
+
+      logger.info('Image optimized', requestId, {
+        originalSize: optimizationResult.originalSize,
+        optimizedSize: optimizationResult.optimizedSize,
+        compressionRatio: optimizationResult.compressionRatio
+      });
+
+      // Get template and prompt (try database first, fallback to service)
+      let template = null;
+      let prompt = null;
+
+      try {
+        template = await Template.findById(templateId);
+        if (template) {
+          prompt = template.prompt;
+        }
+      } catch (error) {
+        logger.debug('Template not found in database, trying service', requestId);
+      }
+
+      if (!prompt) {
+        prompt = this.templateService.getTemplatePrompt(templateId);
+        if (!prompt) {
+          throw new NotFoundError('Template');
+        }
+      }
+
+      // Upload optimized original image to S3
+      const originalImageUrl = await this.s3Service.uploadImage(
+        optimizationResult.buffer,
+        this.imageOptimizationService.generateFilename(req.file.originalname, 'jpg'),
         'uploads'
       );
 
-      console.log('Original image uploaded to S3:', originalImageUrl);
+      logger.debug('Original image uploaded to S3', requestId, { originalImageUrl });
 
       // Edit image with OpenAI
       const editedImageUrl = await this.openaiService.editImage(originalImageUrl, prompt);
 
       const processingTime = Date.now() - startTime;
+
+      // Record analytics and session data
+      try {
+        const session = userSessionService.getSession(sessionId);
+        
+        await analyticsService.recordEditSession({
+          userId: session?.userId,
+          sessionId,
+          templateId,
+          originalImage: {
+            url: originalImageUrl,
+            filename: req.file.originalname,
+            size: req.file.size,
+            width: metadata.width,
+            height: metadata.height,
+            format: metadata.format || 'jpg'
+          },
+          editedImage: {
+            url: editedImageUrl,
+            filename: `edited_${uuidv4()}.jpg`,
+            size: optimizationResult.optimizedSize,
+            width: optimizationResult.width,
+            height: optimizationResult.height,
+            format: 'jpg'
+          },
+          processing: {
+            startTime: new Date(startTime),
+            endTime: new Date(),
+            duration: processingTime,
+            status: 'completed',
+            optimizationApplied: true,
+            compressionRatio: optimizationResult.compressionRatio
+          },
+          metadata: {
+            userAgent: req.get('User-Agent'),
+            ipAddress: req.ip || req.connection.remoteAddress,
+            requestId,
+            templateVersion: template?.metadata?.version || '1.0.0'
+          }
+        });
+
+        // Update template usage if from database
+        if (template && 'incrementUsage' in template && typeof (template as any).incrementUsage === 'function') {
+          await (template as any).incrementUsage(processingTime, true);
+        }
+      } catch (analyticsError) {
+        logger.warn('Failed to record analytics', undefined, { error: String(analyticsError) });
+        // Don't fail the request if analytics fails
+      }
 
       const editResponse: EditResponse = {
         success: true,
@@ -105,32 +209,41 @@ export class EditHandler {
         processingTime,
       };
 
-      const response: ApiResponse<EditResponse> = {
+      logger.info('Image edit completed successfully', requestId, {
+        templateId,
+        processingTime,
+        originalImageUrl,
+        editedImageUrl,
+        sessionId
+      });
+
+      // Set session ID header for client
+      res.set('X-Session-ID', sessionId);
+
+      res.json({
         success: true,
         data: editResponse,
         message: 'Image edited successfully',
-      };
-
-      console.log(`Image edit completed in ${processingTime}ms`);
-      res.json(response);
+      });
 
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      console.error('Error editing image:', error);
+      
+      if (error instanceof Error && error.name === 'ExternalServiceError') {
+        logger.error('External service error during image edit', error, requestId, {
+          templateId: req.body?.templateId,
+          processingTime
+        });
+        throw new ExternalServiceError('OpenAI', error.message);
+      }
 
-      const editResponse: EditResponse = {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      logger.error('Error editing image', error, requestId, {
+        templateId: req.body?.templateId,
         processingTime,
-      };
+        fileName: req.file?.originalname
+      });
 
-      const response: ApiResponse<EditResponse> = {
-        success: false,
-        data: editResponse,
-        error: 'Failed to edit image',
-      };
-
-      res.status(500).json(response);
+      throw error;
     }
   };
 

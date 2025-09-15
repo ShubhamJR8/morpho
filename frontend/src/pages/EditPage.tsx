@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/Button';
 import { Progress } from '../components/ui/Progress';
 import { SafeImage } from '../components/SafeImage';
+import { Breadcrumb } from '../components/Breadcrumb';
 import { apiService } from '../services/api';
 import { useToast } from '../components/ui/Toaster';
 import { 
@@ -48,7 +49,8 @@ export const EditPage: React.FC = () => {
         state: { 
           resultUrl: data.imageUrl,
           processingTime: data.processingTime,
-          template: template
+          template: template,
+          originalImage: previewUrl
         }
       });
     },
@@ -58,6 +60,7 @@ export const EditPage: React.FC = () => {
         description: error.message || 'Failed to edit image. Please try again.',
         type: 'error',
       });
+      setUploadProgress(0);
     },
   });
 
@@ -164,8 +167,22 @@ export const EditPage: React.FC = () => {
     );
   }
 
+  const breadcrumbItems = [
+    { label: 'Gallery', path: '/' },
+    { label: template?.title || 'Style', isActive: true }
+  ];
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      {/* Breadcrumb Navigation */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Breadcrumb items={breadcrumbItems} />
+      </motion.div>
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -184,12 +201,13 @@ export const EditPage: React.FC = () => {
         <div className="w-24" /> {/* Spacer for centering */}
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         {/* Upload Section */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
+          className="order-last xl:order-first"
         >
           <Card>
             <CardHeader>
@@ -298,6 +316,7 @@ export const EditPage: React.FC = () => {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
+          className="order-first xl:order-last"
         >
           <Card>
             <CardHeader>

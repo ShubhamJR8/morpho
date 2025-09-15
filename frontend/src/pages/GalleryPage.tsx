@@ -7,8 +7,9 @@ import { Button } from '../components/ui/Button';
 import { SkeletonGrid } from '../components/LoadingSkeleton';
 import { ParallaxSection } from '../components/ParallaxSection';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import { useSearch } from '../hooks/useSearch';
+import { useSearchContext } from '../contexts/SearchContext';
 import { CategoryTransition } from '../components/CategoryTransition';
+import { SearchBar } from '../components/SearchBar';
 import { apiService } from '../services/api';
 import { 
   Home, 
@@ -22,17 +23,20 @@ import {
 } from 'lucide-react';
 
 export const GalleryPage: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [displayedTemplates, setDisplayedTemplates] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const columns = useResponsiveColumns();
 
-  // Search functionality
-  const { searchResults, isActive: isSearchActive, clearSearch } = useSearch({
-    category: selectedCategory !== 'all' ? selectedCategory : undefined,
-    limit: 50
-  });
+  // Search functionality from context
+  const { 
+    selectedCategory, 
+    setSelectedCategory, 
+    searchResults, 
+    isActive: isSearchActive, 
+    clearSearch,
+    search
+  } = useSearchContext();
 
   const { data: templates, isLoading: templatesLoading, error: templatesError } = useQuery({
     queryKey: ['templates'],
@@ -118,6 +122,15 @@ export const GalleryPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Search Bar */}
+      <div className="block sm:hidden bg-white border-b border-gray-200 p-4">
+        <SearchBar
+          onSearch={search}
+          placeholder="Search styles..."
+          category={selectedCategory !== 'all' ? selectedCategory : undefined}
+        />
+      </div>
+
       {/* Category Transition Indicator */}
       <CategoryTransition 
         isVisible={isTransitioning} 

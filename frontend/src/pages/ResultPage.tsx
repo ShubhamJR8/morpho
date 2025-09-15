@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Breadcrumb } from '../components/Breadcrumb';
 import { 
   Download, 
   ArrowLeft, 
@@ -22,6 +23,7 @@ interface ResultPageState {
     description?: string;
     category?: string;
   };
+  originalImage?: string;
 }
 
 export const ResultPage: React.FC = () => {
@@ -87,8 +89,23 @@ export const ResultPage: React.FC = () => {
     return `${(ms / 1000).toFixed(1)}s`;
   };
 
+  const breadcrumbItems = [
+    { label: 'Gallery', path: '/' },
+    { label: state.template.title, path: `/edit/${state.template.id}` },
+    { label: 'Result', isActive: true }
+  ];
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      {/* Breadcrumb Navigation */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Breadcrumb items={breadcrumbItems} />
+      </motion.div>
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -105,7 +122,7 @@ export const ResultPage: React.FC = () => {
         </p>
       </motion.div>
 
-      {/* Result Image */}
+      {/* Before/After Comparison */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -114,7 +131,7 @@ export const ResultPage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Your Transformed Image</span>
+              <span>Before & After</span>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
                 <span>Processed in {formatProcessingTime(state.processingTime)}</span>
@@ -126,21 +143,39 @@ export const ResultPage: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="relative group">
-              <img
-                src={state.resultUrl}
-                alt="AI Edited Result"
-                className="w-full h-auto rounded-lg shadow-lg"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 rounded-lg" />
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="flex space-x-2">
-                  <Button size="sm" onClick={handleDownload}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleShare}>
-                    <Share2 className="h-4 w-4" />
-                  </Button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Original Image */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-gray-700">Original</h3>
+                <div className="relative group">
+                  <img
+                    src={state.originalImage || state.resultUrl}
+                    alt="Original Image"
+                    className="w-full h-auto rounded-lg shadow-md"
+                  />
+                </div>
+              </div>
+              
+              {/* Transformed Image */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-gray-700">Transformed</h3>
+                <div className="relative group">
+                  <img
+                    src={state.resultUrl}
+                    alt="AI Edited Result"
+                    className="w-full h-auto rounded-lg shadow-lg"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 rounded-lg" />
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="flex space-x-2">
+                      <Button size="sm" onClick={handleDownload}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleShare}>
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
