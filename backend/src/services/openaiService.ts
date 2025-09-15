@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import { S3Service } from './s3Service';
+import logger from '../utils/logger';
+import { ExternalServiceError } from '../utils/errorHandler';
 
 export class OpenAIService {
   private openai: OpenAI;
@@ -14,13 +16,18 @@ export class OpenAIService {
 
   async editImage(imageUrl: string, prompt: string): Promise<string> {
     try {
-      console.log('Starting image editing with OpenAI...');
+      logger.info('Starting image editing with OpenAI...');
       
       // Download the image from URL and convert to buffer
       const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      
       const buffer = await response.arrayBuffer();
       const imageFile = new File([new Uint8Array(buffer)], 'image.png', { type: 'image/png' });
       
+      logger.info('Sending image edit request to OpenAI...');
       const openaiResponse = await this.openai.images.edit({
         image: imageFile,
         prompt: prompt,
@@ -38,32 +45,42 @@ export class OpenAIService {
         throw new Error('Generated image URL is undefined');
       }
 
+      logger.info('Downloading generated image from OpenAI...');
       // Download the generated image and upload to S3
       const generatedResponse = await fetch(generatedImageUrl);
+      if (!generatedResponse.ok) {
+        throw new Error(`Failed to fetch generated image: ${generatedResponse.status} ${generatedResponse.statusText}`);
+      }
+      
       const generatedBuffer = await generatedResponse.arrayBuffer();
       const generatedImageBuffer = Buffer.from(generatedBuffer);
 
       // Upload to S3 and return the S3 URL
       const s3Url = await this.s3Service.uploadGeneratedImage(generatedImageBuffer, 'openai-generated');
       
-      console.log('Image editing completed successfully');
+      logger.info('Image editing completed successfully');
       return s3Url;
 
     } catch (error) {
-      console.error('OpenAI image editing error:', error);
-      throw new Error(`Failed to edit image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('OpenAI image editing error:', error);
+      throw new ExternalServiceError('OpenAI', `Failed to edit image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async generateVariation(imageUrl: string): Promise<string> {
     try {
-      console.log('Starting image variation generation with OpenAI...');
+      logger.info('Starting image variation generation with OpenAI...');
       
       // Download the image from URL and convert to buffer
       const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      
       const buffer = await response.arrayBuffer();
       const imageFile = new File([new Uint8Array(buffer)], 'image.png', { type: 'image/png' });
       
+      logger.info('Sending image variation request to OpenAI...');
       const openaiResponse = await this.openai.images.createVariation({
         image: imageFile,
         n: 1,
@@ -80,20 +97,25 @@ export class OpenAIService {
         throw new Error('Generated image URL is undefined');
       }
 
+      logger.info('Downloading generated variation from OpenAI...');
       // Download the generated image and upload to S3
       const generatedResponse = await fetch(generatedImageUrl);
+      if (!generatedResponse.ok) {
+        throw new Error(`Failed to fetch generated variation: ${generatedResponse.status} ${generatedResponse.statusText}`);
+      }
+      
       const generatedBuffer = await generatedResponse.arrayBuffer();
       const generatedImageBuffer = Buffer.from(generatedBuffer);
 
       // Upload to S3 and return the S3 URL
       const s3Url = await this.s3Service.uploadGeneratedImage(generatedImageBuffer, 'openai-variation');
       
-      console.log('Image variation generation completed successfully');
+      logger.info('Image variation generation completed successfully');
       return s3Url;
 
     } catch (error) {
-      console.error('OpenAI image variation error:', error);
-      throw new Error(`Failed to generate image variation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('OpenAI image variation error:', error);
+      throw new ExternalServiceError('OpenAI', `Failed to generate image variation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
