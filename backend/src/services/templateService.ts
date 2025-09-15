@@ -1,15 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-
-// Define types locally
-interface Template {
-  id: string;
-  title: string;
-  previewUrl: string;
-  prompt: string;
-  description?: string;
-  category?: string;
-}
+import { Template, PublicTemplate } from '../types';
+import logger from '../utils/logger';
 
 export class TemplateService {
   private templates: Template[] = [];
@@ -23,14 +15,14 @@ export class TemplateService {
       const templatesPath = path.join(__dirname, '../data/templates.json');
       const templatesData = fs.readFileSync(templatesPath, 'utf8');
       this.templates = JSON.parse(templatesData);
-      console.log(`Loaded ${this.templates.length} templates`);
+      logger.info(`Loaded ${this.templates.length} templates from ${templatesPath}`);
     } catch (error) {
-      console.error('Error loading templates:', error);
+      logger.error('Error loading templates:', error);
       this.templates = [];
     }
   }
 
-  getAllTemplates(): Omit<Template, 'prompt'>[] {
+  getAllTemplates(): PublicTemplate[] {
     return this.templates.map(template => {
       const { prompt, ...publicTemplate } = template;
       return publicTemplate;
@@ -47,13 +39,13 @@ export class TemplateService {
     return template?.prompt || null;
   }
 
-  getTemplatesByCategory(category: string): Omit<Template, 'prompt'>[] {
+  getTemplatesByCategory(category: string): PublicTemplate[] {
     return this.templates
       .filter(template => template.category === category)
-      .map(template => ({
-        ...template,
-        prompt: undefined,
-      })) as Omit<Template, 'prompt'>[];
+      .map(template => {
+        const { prompt, ...publicTemplate } = template;
+        return publicTemplate;
+      });
   }
 
   getCategories(): string[] {
@@ -63,7 +55,7 @@ export class TemplateService {
     return categories as string[];
   }
 
-  searchTemplates(query: string, category?: string, limit: number = 20): Omit<Template, 'prompt'>[] {
+  searchTemplates(query: string, category?: string, limit: number = 20): PublicTemplate[] {
     const searchQuery = query.toLowerCase().trim();
     
     if (!searchQuery) {

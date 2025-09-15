@@ -3,21 +3,9 @@ import multer from 'multer';
 import { TemplateService } from '../services/templateService';
 import { OpenAIService } from '../services/openaiService';
 import { S3Service } from '../services/s3Service';
-
-// Define types locally
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
-
-interface EditResponse {
-  success: boolean;
-  imageUrl?: string;
-  error?: string;
-  processingTime?: number;
-}
+import { ApiResponse, EditResponse } from '../types';
+import { asyncHandler, ValidationError, NotFoundError, ExternalServiceError } from '../utils/errorHandler';
+import logger from '../utils/logger';
 
 // Configure multer for memory storage
 const upload = multer({
@@ -48,43 +36,28 @@ export class EditHandler {
   // Middleware for handling file upload
   uploadMiddleware = upload.single('image');
 
-  editImage = async (req: Request, res: Response): Promise<void> => {
+  editImage = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const startTime = Date.now();
     
+    // Validate request
+    if (!req.file) {
+      throw new ValidationError('No image file provided');
+    }
+
+    const { templateId } = req.body;
+    if (!templateId) {
+      throw new ValidationError('Template ID is required');
+    }
+
+    // Get template and prompt
+    const prompt = this.templateService.getTemplatePrompt(templateId);
+    if (!prompt) {
+      throw new NotFoundError(`Template with ID '${templateId}' not found or invalid`);
+    }
+
+    logger.info(`Starting image edit for template: ${templateId}, file: ${req.file.originalname}`);
+
     try {
-      // Validate request
-      if (!req.file) {
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'No image file provided',
-        };
-        res.status(400).json(response);
-        return;
-      }
-
-      const { templateId } = req.body;
-      if (!templateId) {
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'Template ID is required',
-        };
-        res.status(400).json(response);
-        return;
-      }
-
-      // Get template and prompt
-      const prompt = this.templateService.getTemplatePrompt(templateId);
-      if (!prompt) {
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'Template not found or invalid',
-        };
-        res.status(404).json(response);
-        return;
-      }
-
-      console.log(`Starting image edit for template: ${templateId}`);
-
       // Upload original image to S3 first
       const originalImageUrl = await this.s3Service.uploadImage(
         req.file.buffer,
@@ -92,7 +65,7 @@ export class EditHandler {
         'uploads'
       );
 
-      console.log('Original image uploaded to S3:', originalImageUrl);
+      logger.info('Original image uploaded to S3 successfully');
 
       // Edit image with OpenAI
       const editedImageUrl = await this.openaiService.editImage(originalImageUrl, prompt);
@@ -102,37 +75,37 @@ export class EditHandler {
       const editResponse: EditResponse = {
         success: true,
         imageUrl: editedImageUrl,
+        originalImageUrl,
         processingTime,
+        templateId,
       };
 
       const response: ApiResponse<EditResponse> = {
         success: true,
         data: editResponse,
         message: 'Image edited successfully',
+        timestamp: new Date().toISOString(),
       };
 
-      console.log(`Image edit completed in ${processingTime}ms`);
+      logger.info(`Image edit completed successfully in ${processingTime}ms`);
       res.json(response);
 
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      console.error('Error editing image:', error);
+      logger.error('Error editing image:', error);
 
-      const editResponse: EditResponse = {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        processingTime,
-      };
+      // Re-throw as external service error if it's from OpenAI or S3
+      if (error instanceof Error && (
+        error.message.includes('OpenAI') || 
+        error.message.includes('S3') ||
+        error.message.includes('upload')
+      )) {
+        throw new ExternalServiceError('Image Processing', error.message);
+      }
 
-      const response: ApiResponse<EditResponse> = {
-        success: false,
-        data: editResponse,
-        error: 'Failed to edit image',
-      };
-
-      res.status(500).json(response);
+      throw error;
     }
-  };
+  });
 
   // Health check endpoint
   healthCheck = async (req: Request, res: Response): Promise<void> => {

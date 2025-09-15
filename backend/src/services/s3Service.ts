@@ -1,5 +1,7 @@
 import AWS from 'aws-sdk';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
+import { ExternalServiceError } from '../utils/errorHandler';
 
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -27,11 +29,13 @@ export class S3Service {
     };
 
     try {
+      logger.info(`Uploading image to S3: ${fileName}`);
       const result = await s3.upload(params).promise();
+      logger.info(`Image uploaded successfully to S3: ${result.Location}`);
       return result.Location;
     } catch (error) {
-      console.error('S3 upload error:', error);
-      throw new Error('Failed to upload image to S3');
+      logger.error('S3 upload error:', error);
+      throw new ExternalServiceError('S3', `Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -47,11 +51,13 @@ export class S3Service {
     };
 
     try {
+      logger.info(`Uploading generated image to S3: ${fileName}`);
       const result = await s3.upload(params).promise();
+      logger.info(`Generated image uploaded successfully to S3: ${result.Location}`);
       return result.Location;
     } catch (error) {
-      console.error('S3 upload error:', error);
-      throw new Error('Failed to upload generated image to S3');
+      logger.error('S3 upload error for generated image:', error);
+      throw new ExternalServiceError('S3', `Failed to upload generated image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -64,10 +70,12 @@ export class S3Service {
     };
 
     try {
+      logger.info(`Deleting image from S3: ${key}`);
       await s3.deleteObject(params).promise();
+      logger.info(`Image deleted successfully from S3: ${key}`);
     } catch (error) {
-      console.error('S3 delete error:', error);
-      throw new Error('Failed to delete image from S3');
+      logger.error('S3 delete error:', error);
+      throw new ExternalServiceError('S3', `Failed to delete image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

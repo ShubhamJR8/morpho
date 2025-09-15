@@ -1,13 +1,8 @@
 import { Request, Response } from 'express';
 import { TemplateService } from '../services/templateService';
-
-// Define types locally
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
+import { ApiResponse, PublicTemplate } from '../types';
+import { asyncHandler, NotFoundError, ValidationError } from '../utils/errorHandler';
+import logger from '../utils/logger';
 
 export class TemplateHandler {
   private templateService: TemplateService;
@@ -16,147 +11,100 @@ export class TemplateHandler {
     this.templateService = new TemplateService();
   }
 
-  getAllTemplates = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const templates = this.templateService.getAllTemplates();
-      
-      const response: ApiResponse<typeof templates> = {
-        success: true,
-        data: templates,
-        message: 'Templates retrieved successfully',
-      };
+  getAllTemplates = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    logger.info('Fetching all templates');
+    const templates = this.templateService.getAllTemplates();
+    
+    const response: ApiResponse<PublicTemplate[]> = {
+      success: true,
+      data: templates,
+      message: 'Templates retrieved successfully',
+      timestamp: new Date().toISOString(),
+    };
 
-      res.json(response);
-    } catch (error) {
-      console.error('Error getting templates:', error);
-      
-      const response: ApiResponse<null> = {
-        success: false,
-        error: 'Failed to retrieve templates',
-      };
+    logger.info(`Retrieved ${templates.length} templates`);
+    res.json(response);
+  });
 
-      res.status(500).json(response);
+  getTemplateById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    logger.info(`Fetching template with ID: ${id}`);
+    
+    const template = this.templateService.getTemplateById(id);
+
+    if (!template) {
+      throw new NotFoundError(`Template with ID '${id}' not found`);
     }
-  };
 
-  getTemplateById = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const template = this.templateService.getTemplateById(id);
+    // Don't expose the prompt in the public API
+    const { prompt, ...publicTemplate } = template;
+    
+    const response: ApiResponse<PublicTemplate> = {
+      success: true,
+      data: publicTemplate,
+      message: 'Template retrieved successfully',
+      timestamp: new Date().toISOString(),
+    };
 
-      if (!template) {
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'Template not found',
-        };
-        res.status(404).json(response);
-        return;
-      }
+    logger.info(`Template '${id}' retrieved successfully`);
+    res.json(response);
+  });
 
-      // Don't expose the prompt in the public API
-      const { prompt, ...publicTemplate } = template;
-      
-      const response: ApiResponse<typeof publicTemplate> = {
-        success: true,
-        data: publicTemplate,
-        message: 'Template retrieved successfully',
-      };
+  getTemplatesByCategory = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { category } = req.params;
+    logger.info(`Fetching templates for category: ${category}`);
+    
+    const templates = this.templateService.getTemplatesByCategory(category);
+    
+    const response: ApiResponse<PublicTemplate[]> = {
+      success: true,
+      data: templates,
+      message: `Templates for category '${category}' retrieved successfully`,
+      timestamp: new Date().toISOString(),
+    };
 
-      res.json(response);
-    } catch (error) {
-      console.error('Error getting template:', error);
-      
-      const response: ApiResponse<null> = {
-        success: false,
-        error: 'Failed to retrieve template',
-      };
+    logger.info(`Retrieved ${templates.length} templates for category '${category}'`);
+    res.json(response);
+  });
 
-      res.status(500).json(response);
+  getCategories = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    logger.info('Fetching all categories');
+    const categories = this.templateService.getCategories();
+    
+    const response: ApiResponse<string[]> = {
+      success: true,
+      data: categories,
+      message: 'Categories retrieved successfully',
+      timestamp: new Date().toISOString(),
+    };
+
+    logger.info(`Retrieved ${categories.length} categories`);
+    res.json(response);
+  });
+
+  searchTemplates = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { q: query, category, limit = '20' } = req.query;
+    
+    if (!query || typeof query !== 'string') {
+      throw new ValidationError('Search query is required');
     }
-  };
 
-  getTemplatesByCategory = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { category } = req.params;
-      const templates = this.templateService.getTemplatesByCategory(category);
-      
-      const response: ApiResponse<typeof templates> = {
-        success: true,
-        data: templates,
-        message: `Templates for category '${category}' retrieved successfully`,
-      };
+    logger.info(`Searching templates with query: '${query}', category: '${category}', limit: ${limit}`);
+    
+    const templates = this.templateService.searchTemplates(
+      query, 
+      category as string, 
+      parseInt(limit as string)
+    );
+    
+    const response: ApiResponse<PublicTemplate[]> = {
+      success: true,
+      data: templates,
+      message: 'Search completed successfully',
+      timestamp: new Date().toISOString(),
+    };
 
-      res.json(response);
-    } catch (error) {
-      console.error('Error getting templates by category:', error);
-      
-      const response: ApiResponse<null> = {
-        success: false,
-        error: 'Failed to retrieve templates by category',
-      };
-
-      res.status(500).json(response);
-    }
-  };
-
-  getCategories = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const categories = this.templateService.getCategories();
-      
-      const response: ApiResponse<typeof categories> = {
-        success: true,
-        data: categories,
-        message: 'Categories retrieved successfully',
-      };
-
-      res.json(response);
-    } catch (error) {
-      console.error('Error getting categories:', error);
-      
-      const response: ApiResponse<null> = {
-        success: false,
-        error: 'Failed to retrieve categories',
-      };
-
-      res.status(500).json(response);
-    }
-  };
-
-  searchTemplates = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { q: query, category, limit = '20' } = req.query;
-      
-      if (!query || typeof query !== 'string') {
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'Search query is required',
-        };
-        res.status(400).json(response);
-        return;
-      }
-
-      const templates = this.templateService.searchTemplates(
-        query, 
-        category as string, 
-        parseInt(limit as string)
-      );
-      
-      const response: ApiResponse<typeof templates> = {
-        success: true,
-        data: templates,
-        message: 'Search completed successfully',
-      };
-
-      res.json(response);
-    } catch (error) {
-      console.error('Error searching templates:', error);
-      
-      const response: ApiResponse<null> = {
-        success: false,
-        error: 'Failed to search templates',
-      };
-
-      res.status(500).json(response);
-    }
-  };
+    logger.info(`Search returned ${templates.length} templates`);
+    res.json(response);
+  });
 }
