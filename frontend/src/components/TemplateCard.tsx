@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Button } from './ui/Button';
-import { SafeImage } from './SafeImage';
-import { RippleButton, MagneticButton } from './MicroInteractions';
+import { LazyImage } from './LazyImage';
+import { RippleButton } from './MicroInteractions';
 import { SwipeableCard } from './GestureAnimations';
+import { useAccessibility } from '../hooks/useAccessibility';
 import { Heart, Share2, MoreHorizontal, Sparkles } from 'lucide-react';
 import type { Template } from '../services/api';
 
@@ -12,9 +12,10 @@ interface TemplateCardProps {
   template: Omit<Template, 'prompt'>;
 }
 
-export const TemplateCard: React.FC<TemplateCardProps> = ({ template }) => {
+export const TemplateCard: React.FC<TemplateCardProps> = memo(({ template }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const { announce } = useAccessibility();
 
   return (
     <SwipeableCard
@@ -30,11 +31,16 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({ template }) => {
         onMouseLeave={() => setShowActions(false)}
       >
         {/* Pinterest-style Pin with 3D Effect */}
-        <div className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02] border border-gray-100/50">
+        <div 
+          className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer transform hover:-translate-y-2 hover:scale-[1.02] border border-gray-100/50"
+          role="article"
+          aria-label={`Template: ${template.title}`}
+          tabIndex={0}
+        >
         {/* Image Container with 3D Effect */}
         <div className="relative overflow-hidden rounded-t-3xl">
           <Link to={`/edit/${template.id}`}>
-            <SafeImage
+            <LazyImage
               src={template.previewUrl}
               alt={template.title}
               className="w-full object-cover transition-transform duration-300 group-hover:scale-110"
@@ -53,20 +59,29 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({ template }) => {
             <RippleButton
               onClick={() => {
                 setIsLiked(!isLiked);
+                announce(isLiked ? 'Removed from favorites' : 'Added to favorites');
               }}
               className="h-9 w-9 p-0 bg-white/95 hover:bg-white shadow-lg hover:shadow-xl rounded-full border border-gray-200/50"
+              aria-label={isLiked ? 'Remove from favorites' : 'Add to favorites'}
             >
               <Heart 
-                className={`h-4 w-4 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-700'}`} 
+                className={`h-4 w-4 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-700'}`}
+                aria-hidden="true"
               />
             </RippleButton>
             
-            <RippleButton className="h-9 w-9 p-0 bg-white/95 hover:bg-white shadow-lg hover:shadow-xl rounded-full border border-gray-200/50">
-              <Share2 className="h-4 w-4 text-gray-700" />
+            <RippleButton 
+              className="h-9 w-9 p-0 bg-white/95 hover:bg-white shadow-lg hover:shadow-xl rounded-full border border-gray-200/50"
+              aria-label="Share template"
+            >
+              <Share2 className="h-4 w-4 text-gray-700" aria-hidden="true" />
             </RippleButton>
             
-            <RippleButton className="h-9 w-9 p-0 bg-white/95 hover:bg-white shadow-lg hover:shadow-xl rounded-full border border-gray-200/50">
-              <MoreHorizontal className="h-4 w-4 text-gray-700" />
+            <RippleButton 
+              className="h-9 w-9 p-0 bg-white/95 hover:bg-white shadow-lg hover:shadow-xl rounded-full border border-gray-200/50"
+              aria-label="More options"
+            >
+              <MoreHorizontal className="h-4 w-4 text-gray-700" aria-hidden="true" />
             </RippleButton>
           </motion.div>
 
@@ -78,8 +93,11 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({ template }) => {
             className="absolute bottom-3 left-3 right-3"
           >
             <Link to={`/edit/${template.id}`}>
-              <RippleButton className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-3 px-4 rounded-full shadow-lg hover:shadow-xl border border-red-500/20">
-                <Sparkles className="mr-2 h-4 w-4" />
+              <RippleButton 
+                className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-3 px-4 rounded-full shadow-lg hover:shadow-xl border border-red-500/20"
+                aria-label={`Use ${template.title} style for editing`}
+              >
+                <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
                 Use This Style
               </RippleButton>
             </Link>
@@ -110,4 +128,4 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({ template }) => {
       </motion.div>
     </SwipeableCard>
   );
-};
+});

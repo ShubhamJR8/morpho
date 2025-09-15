@@ -6,6 +6,8 @@ import { ResultPage } from './pages/ResultPage';
 import { Header } from './components/Header';
 import { ToastProvider } from './components/ui/Toaster';
 import { PageTransition } from './components/PageTransition';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { SearchProvider } from './contexts/SearchContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,24 +20,28 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <Router>
-          <div className="min-h-screen bg-gray-50">
-            <Header />
-            <main>
-              <PageTransition>
-                <Routes>
-                  <Route path="/" element={<GalleryPage />} />
-                  <Route path="/edit/:templateId" element={<EditPage />} />
-                  <Route path="/result" element={<ResultPage />} />
-                </Routes>
-              </PageTransition>
-            </main>
-          </div>
-        </Router>
-      </ToastProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <SearchProvider>
+            <Router>
+              <div className="min-h-screen bg-gray-50">
+                <Header />
+                <main>
+                  <PageTransition>
+                    <Routes>
+                      <Route path="/" element={<GalleryPage />} />
+                      <Route path="/edit/:templateId" element={<EditPage />} />
+                      <Route path="/result" element={<ResultPage />} />
+                    </Routes>
+                  </PageTransition>
+                </main>
+              </div>
+            </Router>
+          </SearchProvider>
+        </ToastProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
